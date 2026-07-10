@@ -1,0 +1,68 @@
+version: '3.9'
+
+services:
+  db_app:
+    image: mongo:6.0.13
+    container_name: mongodb_app_service
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    networks:
+      - nodejs-mongodb-network
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    # Keep database port exposed ONLY if you access it via Compass from your host OS
+    ports:
+      - "27017:27017" 
+
+  mongodb_ui_app:    
+    image: mongo-express
+    container_name: mongodb_express_ui # Matches central proxy hostname
+    restart: always
+    networks:
+      - nodejs-mongodb-network
+      - kc_shared_central_nginx_proxy_network # Attached to talk to the central proxy
+    # REMOVED public ports mapping: - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: db_app # Using service name safely
+      ME_CONFIG_SITE_BASEURL: "/mongo-express/"
+      ME_CONFIG_SITE_SUBPATH: "/mongo-express/"
+
+  app_api:
+    container_name: nodejs_api_service # Matches central proxy hostname
+    build:
+      context: .
+      dockerfile: Dockerfile.nodejs
+    image: "expressjs_web_app_img"
+    environment:
+      # - PORT=3000
+      - DATABASE_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@db_app:27017/${DB_NAME}?authSource=admin
+    restart: always
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - nodejs-mongodb-network
+      - kc_shared_central_nginx_proxy_network # Attached to talk to the central proxy
+    # REMOVED public ports mapping: - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./:/home/node/app
+    depends_on:
+      - db_app
+
+networks:
+  nodejs-mongodb-network:
+    driver: bridge
+  kc_shared_central_nginx_proxy_network:
+    external: true # Join the shared proxy ecosystem
+
+volumes:
+  mongo-config:
+  mongo-data:
