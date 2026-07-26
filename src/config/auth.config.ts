@@ -8,7 +8,7 @@ const { MONGO_USERNAME,
         MONGO_PORT, 
         MONGO_DATABASE, 
         NODE_PORT,
-        KC_DOMAIN_NAME,
+        KC_ADMIN_DOMAIN_NAME,
         KC_REALMS_NAME } = process.env
 
 
@@ -45,8 +45,8 @@ export const ConnectionConfig: Record<ConnectionEnv, ConnectionInfo> = {
 // keycloak Server configuration loaded from environment variables
 
 export const keycloakConfig = {
-    KC_JWKS_URL: `${KC_DOMAIN_NAME}/realms/${KC_REALMS_NAME}/protocol/openid-connect/certs`,    
-    KC_ISSUER: `${KC_DOMAIN_NAME}/realms/${KC_REALMS_NAME}`,
+    KC_JWKS_URL: `${KC_ADMIN_DOMAIN_NAME}/realms/${KC_REALMS_NAME}/protocol/openid-connect/certs`,    
+    KC_ISSUER: `${KC_ADMIN_DOMAIN_NAME}/realms/${KC_REALMS_NAME}`,
     // KC_JWKS_URL: `https://localhost:8443/realms/HTTPs_localhost_realm/protocol/openid-connect/certs`,    
     // KC_ISSUER: `https://localhost:8443/realms/HTTPs_localhost_realm`,
     port: parseInt(`8443`), // keycloak Server port

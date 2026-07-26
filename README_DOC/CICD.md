@@ -84,11 +84,41 @@ Web origins:
 - Valid post logout redirect URIs: `https://localhost:5173/*` - Where the user is sent after logging out.
 - Web origins: `https://localhost:5173` - This enables CORS. It allows your React app's domain to make JavaScript requests to the auth server.
 
-ERROR:
 
-vendor-tJYGX_wu.js:70 
- GET https://18.223.255.165/keycloak/protected 401 (Unauthorized)
 
-index-BwQ2shQi.js:2 Failed to fetch data: AxiosError: Request failed with status code 401
-    at zb (vendor-tJYGX_wu.js:70:1087)
-    at XMLHttpRequest.D (vendor-tJYGX_wu.js:70:5927)
+
+modify the github action workflow deploy docker compose.yml file and image from docker hub to AWS EC2 app.
+
+This is the docker docker-compose.yml  file:
+
+this github action workflow script:
+
+.env file:
+
+
+
+DOCKER_USERNAME
+BACKEND_REPOSITORY_NAME
+
+HOST_MACHINE
+DEV_LOCALHOST: ${{ secrets.DEV_LOCALHOST || 'localhost:4000' }}
+FRONTEND_DOMAIN_NAME: ${{ secrets.FRONTEND_DOMAIN_NAME || 'https://localhost:4000' }}
+KC_ADMIN_DOMAIN_NAME: ${{ secrets.KC_ADMIN_DOMAIN_NAME || 'https://localhost:8443' }}
+KC_PORT: ${{ secrets.KC_PORT || '8443' }}
+KC_REALMS_NAME: ${{ secrets.KC_REALMS_NAME || 'HTTPs_localhost_realm' }}
+KC_AUDIENCE: ${{ secrets.KC_AUDIENCE || 'https_localhost_client_id' }}
+
+NODE_USER: ${{ secrets.NODE_USER || 'node' }}
+NODE_PORT: ${{ secrets.NODE_PORT || '3000' }}
+
+DB_PORT: ${{ secrets.DB_PORT || '27017' }}
+DB_USER: ${{ secrets.DB_USER || 'testdb' }}
+DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'admin' }}
+DB_NAME: ${{ secrets.DB_NAME || 'mynodejsapp' }}
+
+MONGO_DATABASE: ${{ secrets.MONGO_DATABASE || 'db_name' }}
+MONGO_USERNAME: ${{ secrets.MONGO_USERNAME || 'root' }}
+MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD || 'admin' }}
+
+ME_USERNAME: ${{ secrets.ME_USERNAME || 'admin' }}
+ME_PASSWORD: ${{ 
