@@ -2,6 +2,10 @@
 # Terraform
 # ========================
 # Compiled files
+
+./trf_github_actions_secret_name/*
+./trf_github_actions_secret_name
+
 *.tfstate
 *.tfstate.backup
 *.tfstate.lock.info

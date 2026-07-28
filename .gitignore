@@ -3,6 +3,8 @@
 # ========================
 # Compiled files
 
+trf_github_actions_secret_name/*
+trf_github_actions_secret_name
 terraform/*.tfstate*
 terraform/*.tfstate.lock.info
 
