@@ -1,6 +1,11 @@
+# To manually deploy a Docker image from Docker Hub to AWS EC2
 name: manually-deploy-docker-img-from-docker-hub 
 
 on:
+  #   workflow_run:
+  #     workflows: ["Build-AWS-Infrastructure-with-Terraform"]
+  #     types: [completed]
+
   workflow_dispatch:
 
 permissions:
@@ -18,32 +23,26 @@ jobs:
 
     steps:
       - name: Checkout Repository Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Fetch EC2 Information
+      - name: Fetch EC2 Informations
         id: ec2_data
         run: |
-          set -e
-          
-          # Query AWS for instances matching the Name tag
-          INSTANCE_ID=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=${{ secrets.AWS_EC2_INSTANCE_NAME }}" "Name=instance-state-name,Values=running" \
+          # Fetch instances matching a specific tag (e.g., Name=MyWebServer)
+          INSTANCE_JSON=$(aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=${{secrets.AWS_EC2_INSTANCE_NAME}}" \
               --query "Reservations[*].Instances[*].InstanceId" \
               --output text)
 
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "::error::No running EC2 instance found matching tag Name='${{ secrets.AWS_EC2_INSTANCE_NAME }}'."
-            exit 1
-          fi
-
-          echo "Found Instance ID: $INSTANCE_ID"
-          echo "ec2_instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+          # Write directly to the GitHub Output stream
+          echo "ec2_instance_id=$INSTANCE_JSON" >> "$GITHUB_OUTPUT"
+          echo "Found Instance ID: $INSTANCE_JSON , $GITHUB_OUTPUT"
 
   deploy-docker-image-from-docker-hub-to-AWS-EC2:
     name: Deploy to AWS EC2
@@ -57,6 +56,7 @@ jobs:
       issues: write
       pull-requests: write
 
+    # Job-level environment variables
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_INSTANCE_ID: ${{ needs.fetch_aws_ec2_instance_id.outputs.EC2_INSTANCE_ID }}
@@ -74,17 +74,15 @@ jobs:
 
       - name: Verify EC2 Instance ID
         run: |
-          if [ -z "$EC2_INSTANCE_ID" ]; then
-            echo "::error::EC2_INSTANCE_ID environment variable is missing or empty."
-            exit 1
-          fi
           echo "Deploying to Target Instance ID: $EC2_INSTANCE_ID"
 
       - name: Execute Remote Deployment via SSM
         env:
+          # Map Secrets into step context
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           REST_API_REPO_NAME: ${{ secrets.BACKEND_REST_API_DOCKER_HUB_REPO_NAME }}
           
+          # Application & Database Environment Variables
           HOST_MACHINE: ${{ secrets.HOST_MACHINE || 'localhost' }}
           DEV_LOCALHOST: ${{ secrets.DEV_LOCALHOST || 'localhost:4000' }}
           FRONTEND_DOMAIN_NAME: ${{ secrets.FRONTEND_DOMAIN_NAME || 'https://localhost:4000' }}
@@ -265,4 +263,4 @@ jobs:
               --command-id "$CMD_ID" \
               --instance-id "$EC2_INSTANCE_ID" \
               --query "StandardOutputContent" \
-              --output text
+              --output text   
