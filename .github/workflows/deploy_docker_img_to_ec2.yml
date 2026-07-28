@@ -120,7 +120,7 @@ jobs:
             services:
               expressjs_rest_api_app:
                 container_name: nodejs_api_service
-                image: ${DOCKER_USERNAME}/${REST_API_REPO_NAME}
+                image: ${DOCKER_USERNAME}/${REST_API_REPO_NAME}:main
                 environment:
                   - DATABASE_URL=mongodb://\${MONGO_USERNAME}:\${MONGO_PASSWORD}@db_app:27017/\${DB_NAME}?authSource=admin
                 restart: always
