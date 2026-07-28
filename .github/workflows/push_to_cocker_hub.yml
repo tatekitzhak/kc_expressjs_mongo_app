@@ -36,7 +36,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.NODE_JS_REST_API_REPOSITORY_NAME }}
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.BACKEND_REST_API_DOCKER_HUB_REPO_NAME }}
 
       - name: Build Docker Info ${{steps.meta.outputs.tags}}
         run: echo "Build Docker- ${{toJSON(steps.meta)}}"

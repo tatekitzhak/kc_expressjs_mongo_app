@@ -17,10 +17,11 @@ locals {
   repo_name = "kc_expressjs_mongo_app"
 
   secrets = {
+    BACKEND_REST_API_DOCKER_HUB_REPO_NAME = "expressjs_rest_api_app:main"
     HOST_MACHINE          = "localhost"
     DEV_LOCALHOST         = "localhost:4000"
-    FRONTEND_DOMAIN_NAME  = "https://18.221.18.219:4000"
-    KC_ADMIN_DOMAIN_NAME  = "https://18.221.18.219:8443"
+    FRONTEND_DOMAIN_NAME  = "https://3.17.57.159:4000"
+    KC_ADMIN_DOMAIN_NAME  = "https://3.17.57.159:8443"
     KC_PORT               = "8443"
     KC_REALMS_NAME        = "HTTPs_localhost_realm"
     KC_AUDIENCE           = "https_localhost_client_id"

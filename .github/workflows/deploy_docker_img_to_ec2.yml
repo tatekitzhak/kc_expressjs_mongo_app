@@ -58,10 +58,7 @@ jobs:
 
     # Job-level environment variables
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_INSTANCE_ID: ${{ needs.fetch_aws_ec2_instance_id.outputs.EC2_INSTANCE_ID }}
-      DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
-      BACKEND_REPOSITORY_NAME: ${{ secrets.BACKEND_REPOSITORY_NAME || secrets.FRONTEND_REPOSITORY_NAME }}
 
     steps:
       - name: Checkout Repository
@@ -71,7 +68,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Verify EC2 Instance ID
         run: |
@@ -81,7 +78,7 @@ jobs:
         env:
           # Map Secrets into step context
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          BACKEND_REPOSITORY_NAME: ${{ secrets.BACKEND_REPOSITORY_NAME }}
+          REST_API_REPO_NAME: ${{ secrets.BACKEND_REST_API_DOCKER_HUB_REPO_NAME }}
           
           # Application & Database Environment Variables
           HOST_MACHINE: ${{ secrets.HOST_MACHINE || 'localhost' }}
@@ -123,7 +120,7 @@ jobs:
             services:
               expressjs_rest_api_app:
                 container_name: nodejs_api_service
-                image: ${DOCKER_USERNAME}/${BACKEND_REPOSITORY_NAME}:main
+                image: ${DOCKER_USERNAME}/${REST_API_REPO_NAME}
                 environment:
                   - DATABASE_URL=mongodb://\${MONGO_USERNAME}:\${MONGO_PASSWORD}@db_app:27017/\${DB_NAME}?authSource=admin
                 restart: always
@@ -182,8 +179,6 @@ jobs:
     
             # 2. Define .env content
             ENV_FILE_CONTENT=$(cat <<EOF
-            DOCKER_USERNAME="${DOCKER_USERNAME}"
-            BACKEND_REPOSITORY_NAME="${BACKEND_REPOSITORY_NAME}"
             
             HOST_MACHINE="${HOST_MACHINE}"
             DEV_LOCALHOST="${DEV_LOCALHOST}"
@@ -220,17 +215,17 @@ jobs:
               --arg b64_compose "$B64_COMPOSE" \
               --arg b64_env "$B64_ENV" \
               '{commands: [
-                "mkdir -p /home/ubuntu/github_action_express_backend",
-                "echo \"\($b64_compose)\" | base64 -d > /home/ubuntu/github_action_express_backend/docker-compose.yml",
-                "echo \"\($b64_env)\" | base64 -d > /home/ubuntu/github_action_express_backend/.env",
+                "mkdir -p /home/ubuntu/github_action_expressjs_rest_api",
+                "echo \"\($b64_compose)\" | base64 -d > /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml",
+                "echo \"\($b64_env)\" | base64 -d > /home/ubuntu/github_action_expressjs_rest_api/.env",
                 "echo \"--- Inspecting Decoded Files ---\"",
-                "cat /home/ubuntu/github_action_express_backend/docker-compose.yml",
+                "cat /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml",
                 "echo \"--- Ensuring Shared Network Exists ---\"",
                 "sudo docker network create kc_shared_central_nginx_proxy_network 2>/dev/null || true",
                 "echo \"--- Pulling Latest Docker Image ---\"",
-                "sudo docker compose -f /home/ubuntu/github_action_express_backend/docker-compose.yml pull 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_express_backend/docker-compose.yml pull 2>&1",
+                "sudo docker compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml pull 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml pull 2>&1",
                 "echo \"--- Starting Docker Compose ---\"",
-                "sudo docker compose -f /home/ubuntu/github_action_express_backend/docker-compose.yml up -d --remove-orphans 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_express_backend/docker-compose.yml up -d --remove-orphans 2>&1",
+                "sudo docker compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml up -d --remove-orphans 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml up -d --remove-orphans 2>&1",
                 "sleep 3",
                 "echo \"--- Container Verification ---\"",
                 "sudo docker ps -a"
