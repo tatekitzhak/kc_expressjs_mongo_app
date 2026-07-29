@@ -16,36 +16,55 @@ jobs:
     needs: call_time
     name: Push Docker image to Docker Hub
     env:
-        GLOBAL_TIME: ${{ needs.call_time.outputs.formatted_time }}
+      GLOBAL_TIME: ${{ needs.call_time.outputs.formatted_time }}
     runs-on: ubuntu-latest
+    
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Use Shared Time
         run: |
           echo "The time passed from the utility is: $GLOBAL_TIME"
 
+      # Setup QEMU for multi-architecture builds if needed
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Setup Buildx builder instance
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Log in to Docker Hub
       - name: Log in to Docker Hub 
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with: 
-          username: ${{secrets.DOCKER_USERNAME}}
-          password: ${{secrets.DOCKER_PASSWORD}}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
           
+      # Extract metadata (tags, labels) for Docker
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.BACKEND_REST_API_DOCKER_HUB_REPO_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ needs.call_time.outputs.formatted_time }}
+            type=ref,event=branch
+            type=ref,event=pr
 
-      - name: Build Docker Info ${{steps.meta.outputs.tags}}
-        run: echo "Build Docker- ${{toJSON(steps.meta)}}"
+      - name: Display Generated Docker Tags
+        run: |
+          echo "Generated Tags:"
+          echo "${{ steps.meta.outputs.tags }}"
 
+      # Build and push Docker image
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.nodejs
           push: true
-          tags: ${{steps.meta.outputs.tags}}
-          labels: ${{steps.meta.outputs.labels}}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
