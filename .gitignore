@@ -3,8 +3,13 @@
 # ========================
 # Compiled files
 
-trf_github_actions_secret_name/*
-trf_github_actions_secret_name
+tr_github_actions_secret/*.tfstate*
+tr_github_actions_secret/*.tfstate.lock.info
+tr_github_actions_secret/.terraform/
+tr_github_actions_secret/.terraform.lock.hcl
+tr_github_actions_secret/*.tfvars
+tr_github_actions_secret/*.tfvars.json
+
 terraform/*.tfstate*
 terraform/*.tfstate.lock.info
 
