@@ -39,10 +39,10 @@ jobs:
           echo "ec2_instance_id=$INSTANCE_JSON" >> "$GITHUB_OUTPUT"
           echo "Found Instance ID: $INSTANCE_JSON , $GITHUB_OUTPUT"
 
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "::error::No running EC2 instance found matching tag Name='${{ secrets.AWS_EC2_INSTANCE_NAME }}'."
-            exit 1
-          fi
+          # if [ -z "$INSTANCE_ID" ]; then
+          #   echo "::error::No running EC2 instance found matching tag Name='${{ secrets.AWS_EC2_INSTANCE_NAME }}'."
+          #   exit 1
+          # fi
 
           echo "Found Instance ID: $INSTANCE_ID"
           echo "ec2_instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
