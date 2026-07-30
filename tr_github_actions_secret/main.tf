@@ -27,8 +27,10 @@ locals {
     DB_PORT                                = var.db_port
     DB_USER                                = var.db_user
     DEV_LOCALHOST                          = var.dev_localhost
+
     DOCKER_PASSWORD                        = var.docker_password
     DOCKER_USERNAME                        = var.docker_hub_username
+    
     FRONTEND_DOMAIN_NAME                   = var.frontend_domain_name
     HOST_MACHINE                           = var.host_machine
     KC_ADMIN_DOMAIN_NAME                   = var.kc_admin_domain_name

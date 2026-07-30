@@ -33,7 +33,7 @@ jobs:
           
           # Query AWS for instances matching the Name tag
           INSTANCE_ID=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=${{ secrets.AWS_EC2_INSTANCE_NAME }}" "Name=instance-state-name,Values=running" \
+              --filters "Name=tag:Name,Values=${{secrets.AWS_EC2_INSTANCE_NAME}}" "Name=instance-state-name,Values=running" \
               --query "Reservations[*].Instances[*].InstanceId" \
               --output text)
 
