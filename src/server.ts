@@ -21,7 +21,7 @@ app.get("/", (req: Request, res: Response) => {
     res.status(200).json({
         success: true,
         status: 'success',
-        message: 'Welcome to the Blog API.',
+        message: 'Welcome to Keycloak API.',
     });
 });
 
