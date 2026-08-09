@@ -1,0 +1,266 @@
+# To manually deploy a Docker image from Docker Hub to AWS EC2
+name: manually-deploy-docker-img-from-docker-hub 
+
+on:
+  #   workflow_run:
+  #     workflows: ["Build-AWS-Infrastructure-with-Terraform"]
+  #     types: [completed]
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for AWS OIDC
+  contents: read # Required to checkout code
+  actions: read # Required to download artifacts from other runs
+
+jobs:
+  fetch_aws_ec2_instance_id:
+    name: Extract EC2 instance ID from AWS
+    runs-on: ubuntu-latest
+
+    outputs:
+      EC2_INSTANCE_ID: ${{ steps.ec2_data.outputs.ec2_instance_id }}
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v7
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Fetch EC2 Informations
+        id: ec2_data
+        run: |
+          # Fetch instances matching a specific tag (e.g., Name=MyWebServer)
+          INSTANCE_JSON=$(aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=${{secrets.AWS_EC2_INSTANCE_NAME}}" \
+              --query "Reservations[*].Instances[*].InstanceId" \
+              --output text)
+
+          # Write directly to the GitHub Output stream
+          echo "ec2_instance_id=$INSTANCE_JSON" >> "$GITHUB_OUTPUT"
+          echo "Found Instance ID: $INSTANCE_JSON , $GITHUB_OUTPUT"
+
+  deploy-docker-image-from-docker-hub-to-AWS-EC2:
+    name: Deploy to AWS EC2
+    needs:
+      - fetch_aws_ec2_instance_id
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
+
+    # Job-level environment variables
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_INSTANCE_ID: ${{ needs.fetch_aws_ec2_instance_id.outputs.EC2_INSTANCE_ID }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Verify EC2 Instance ID
+        run: |
+          echo "Deploying to Target Instance ID: $EC2_INSTANCE_ID"
+
+      - name: Execute Remote Deployment via SSM
+        env:
+          # Map Secrets into step context
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          REST_API_REPO_NAME: ${{ secrets.BACKEND_REST_API_DOCKER_HUB_REPO_NAME }}
+          
+          # Application & Database Environment Variables
+          HOST_MACHINE: ${{ secrets.HOST_MACHINE || 'localhost' }}
+          DEV_LOCALHOST: ${{ secrets.DEV_LOCALHOST || 'localhost:4000' }}
+          FRONTEND_DOMAIN_NAME: ${{ secrets.FRONTEND_DOMAIN_NAME || 'https://localhost:4000' }}
+          KC_ADMIN_DOMAIN_NAME: ${{ secrets.KC_ADMIN_DOMAIN_NAME || 'https://localhost:8443' }}
+          KC_PORT: ${{ secrets.KC_PORT || '8443' }}
+          KC_REALM_NAME: ${{ secrets.KC_REALM_NAME || 'HTTPs_localhost_realm' }}
+          KC_AUDIENCE: ${{ secrets.KC_AUDIENCE || 'https_localhost_client_id' }}
+          
+          NODE_USER: ${{ secrets.NODE_USER || 'node' }}
+          NODE_PORT: ${{ secrets.NODE_PORT || '3000' }}
+          
+          DB_PORT: ${{ secrets.DB_PORT || '27017' }}
+          DB_USER: ${{ secrets.DB_USER || 'testdb' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'admin' }}
+          DB_NAME: ${{ secrets.DB_NAME || 'mynodejsapp' }}
+          
+          MONGO_DATABASE: ${{ secrets.MONGO_DATABASE || 'db_name' }}
+          MONGO_USERNAME: ${{ secrets.MONGO_USERNAME || 'root' }}
+          MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD || 'admin' }}
+          
+          ME_USERNAME: ${{ secrets.ME_USERNAME || 'admin' }}
+          ME_PASSWORD: ${{ secrets.ME_PASSWORD || 'admin' }}
+
+        run: |
+            set -e
+            
+            PUBLIC_IP=$(aws ec2 describe-instances \
+              --instance-ids "$EC2_INSTANCE_ID" \
+              --query "Reservations[0].Instances[0].PublicIpAddress" \
+              --output text)
+            
+            echo "Deploying application to target IP: http://$PUBLIC_IP"
+    
+            # 1. Define docker-compose YAML content
+            COMPOSE_YAML=$(cat <<EOF
+            
+            services:
+              expressjs_rest_api_app:
+                container_name: nodejs_api_service
+                image: ${DOCKER_USERNAME}/${REST_API_REPO_NAME}:main
+                environment:
+                  - DATABASE_URL=mongodb://\${MONGO_USERNAME}:\${MONGO_PASSWORD}@db_app:27017/\${DB_NAME}?authSource=admin
+                restart: always
+                extra_hosts:
+                  - "localhost:host-gateway"
+                networks:
+                  - nodejs-mongodb-network
+                  - kc_shared_central_nginx_proxy_network
+                env_file:
+                  - .env
+                depends_on:
+                  - db_app
+            
+              db_app:
+                image: mongo:6.0.13
+                container_name: mongodb_app_service
+                environment:
+                  MONGO_INITDB_DATABASE: \${MONGO_DATABASE}
+                  MONGO_INITDB_ROOT_USERNAME: \${MONGO_USERNAME}
+                  MONGO_INITDB_ROOT_PASSWORD: \${MONGO_PASSWORD}
+                networks:
+                  - nodejs-mongodb-network
+                restart: always
+                volumes:
+                  - mongo-data:/data/db
+                ports:
+                  - "27017:27017"
+            
+              mongodb_ui_app:
+                image: mongo-express
+                container_name: mongodb_express_ui
+                restart: always
+                networks:
+                  - nodejs-mongodb-network
+                  - kc_shared_central_nginx_proxy_network
+                environment:
+                  ME_CONFIG_MONGODB_ADMINUSERNAME: \${MONGO_USERNAME}
+                  ME_CONFIG_MONGODB_ADMINPASSWORD: \${MONGO_PASSWORD}
+                  ME_CONFIG_BASICAUTH_USERNAME: \${ME_USERNAME}
+                  ME_CONFIG_BASICAUTH_PASSWORD: \${ME_PASSWORD}
+                  ME_CONFIG_MONGODB_SERVER: db_app
+                  ME_CONFIG_SITE_BASEURL: "/mongo-express/"
+                  ME_CONFIG_SITE_SUBPATH: "/mongo-express/"
+            
+            networks:
+              nodejs-mongodb-network:
+                driver: bridge
+              kc_shared_central_nginx_proxy_network:
+                external: true
+            
+            volumes:
+              mongo-config:
+              mongo-data:
+            EOF
+            )
+    
+            # 2. Define .env content
+            ENV_FILE_CONTENT=$(cat <<EOF
+            
+            HOST_MACHINE="${HOST_MACHINE}"
+            DEV_LOCALHOST="${DEV_LOCALHOST}"
+            FRONTEND_DOMAIN_NAME="${FRONTEND_DOMAIN_NAME}"
+            
+            KC_ADMIN_DOMAIN_NAME="${KC_ADMIN_DOMAIN_NAME}"
+            KC_PORT="${KC_PORT}"
+            KC_REALM_NAME="${KC_REALM_NAME}"
+            KC_AUDIENCE="${KC_AUDIENCE}"
+            
+            NODE_USER="${NODE_USER}"
+            NODE_PORT="${NODE_PORT}"
+            
+            DB_PORT="${DB_PORT}"
+            DB_USER="${DB_USER}"
+            DB_PASSWORD="${DB_PASSWORD}"
+            DB_NAME="${DB_NAME}"
+            
+            MONGO_DATABASE="${MONGO_DATABASE}"
+            MONGO_USERNAME="${MONGO_USERNAME}"
+            MONGO_PASSWORD="${MONGO_PASSWORD}"
+            
+            ME_USERNAME="${ME_USERNAME}"
+            ME_PASSWORD="${ME_PASSWORD}"
+            EOF
+            )
+    
+            # 3. Base64 encode both payloads
+            B64_COMPOSE=$(echo "$COMPOSE_YAML" | base64 -w 0)
+            B64_ENV=$(echo "$ENV_FILE_CONTENT" | base64 -w 0)
+    
+            # 4. Construct JSON payload for SSM
+            COMMANDS_JSON=$(jq -n \
+              --arg b64_compose "$B64_COMPOSE" \
+              --arg b64_env "$B64_ENV" \
+              '{commands: [
+                "mkdir -p /home/ubuntu/github_action_expressjs_rest_api",
+                "echo \"\($b64_compose)\" | base64 -d > /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml",
+                "echo \"\($b64_env)\" | base64 -d > /home/ubuntu/github_action_expressjs_rest_api/.env",
+                "echo \"--- Inspecting Decoded Files ---\"",
+                "cat /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml",
+                "echo \"--- Ensuring Shared Network Exists ---\"",
+                "sudo docker network create kc_shared_central_nginx_proxy_network 2>/dev/null || true",
+                "echo \"--- Pulling Latest Docker Image ---\"",
+                "sudo docker compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml pull 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml pull 2>&1",
+                "echo \"--- Starting Docker Compose ---\"",
+                "sudo docker compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml up -d --remove-orphans 2>&1 || sudo docker-compose -f /home/ubuntu/github_action_expressjs_rest_api/docker-compose.yml up -d --remove-orphans 2>&1",
+                "sleep 3",
+                "echo \"--- Container Verification ---\"",
+                "sudo docker ps -a"
+            ]}')
+    
+            # 5. Send SSM Command
+            CMD_ID=$(aws ssm send-command \
+              --document-name "AWS-RunShellScript" \
+              --instance-ids "$EC2_INSTANCE_ID" \
+              --parameters "$COMMANDS_JSON" \
+              --output text \
+              --query "Command.CommandId")
+    
+            echo "Sent SSM Command ID: $CMD_ID"
+    
+            # 6. Polling Loop
+            for i in $(seq 1 36); do
+              STATUS=$(aws ssm get-command-invocation \
+                --command-id "$CMD_ID" \
+                --instance-id "$EC2_INSTANCE_ID" \
+                --query "Status" \
+                --output text 2>/dev/null || echo "Pending")
+    
+              echo "Deployment Status ($i/36): $STATUS"
+              [ "$STATUS" = "Success" ] && break
+              [[ "$STATUS" == "Failed" || "$STATUS" == "TimedOut" || "$STATUS" == "Cancelled" ]] && exit 1
+              sleep 10
+            done
+    
+            # 7. Output Execution Logs
+            echo "--- EC2 Execution Logs ---"
+            aws ssm get-command-invocation \
+              --command-id "$CMD_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query "StandardOutputContent" \
+              --output text   

@@ -1,0 +1,46 @@
+# ==========================================
+# STAGE 1: Build the TypeScript application
+# ==========================================
+FROM node:20-slim AS builder
+
+WORKDIR /usr/src/app
+
+# Copy package files first to optimize Docker layer caching
+COPY package*.json ./
+
+# Wipe any existing modules and install ALL dependencies (including devDependencies)
+RUN rm -rf node_modules package-lock.json && \
+    npm install
+
+# Copy the rest of the application source code
+COPY . .
+
+# Compile TypeScript to JavaScript (runs 'rimraf ./build && tsc')
+RUN npm run build
+
+
+# ==========================================
+# STAGE 2: Lightweight Production Runtime
+# ==========================================
+FROM node:20-slim AS production
+
+WORKDIR /usr/src/app
+
+# Set environment variable to production
+ENV NODE_ENV=production
+
+# Copy package files to install ONLY production dependencies
+COPY package*.json ./
+
+# Install only production dependencies (skips typescript, eslint, jest, etc.)
+RUN rm -rf node_modules package-lock.json && \
+    npm install --omit=dev
+
+# Copy the compiled JavaScript files from the builder stage
+COPY --from=builder /usr/src/app/build ./build
+
+# Expose the application port
+EXPOSE 3000
+
+# Use the production start script
+CMD ["npm", "run", "start:prod"]

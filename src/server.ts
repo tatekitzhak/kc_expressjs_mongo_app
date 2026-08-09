@@ -9,10 +9,15 @@ import { healthRoutes } from './routes/health.routes.js';
 
 const app: Express = express();
 
+// Apply CORS globally before defined routes
 app.use(cors(corsOptions));
+
+// Explicitly handle preflight OPTIONS requests across all routes
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use("/", blogsRouter);
 app.use("/", healthCheckRouter, healthRoutes);
 app.use("/keycloak", keycloakRouter);

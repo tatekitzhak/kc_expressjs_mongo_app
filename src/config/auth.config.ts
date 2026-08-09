@@ -2,15 +2,21 @@ import dotenv from 'dotenv';
 import 'dotenv/config';
 dotenv.config();
 
-const { MONGO_USERNAME, 
-        MONGO_PASSWORD, 
-        MONGO_HOST, 
-        MONGO_PORT, 
-        MONGO_DATABASE, 
-        NODE_PORT,
-        KC_ADMIN_DOMAIN_NAME,
-        KC_REALMS_NAME } = process.env
+// Helper function to remove trailing slashes from URLs
+const cleanUrl = (url?: string) => (url ? url.replace(/\/+$/, '') : '');
 
+// const {
+//     KC_ADMIN_DOMAIN_NAME = 'https://localhost:8443',
+//     KC_REALM_NAME = 'HTTPS_localhost_realm',
+//     KC_INTERNAL_URL = 'http://keycloak_container:8080'
+// } = process.env;
+
+const { 
+    KC_ADMIN_DOMAIN_NAME,
+    KC_REALM_NAME = 'HTTPS_localhost_realm',
+    KC_INTERNAL_URL = 'http://keycloak_container:8080',
+    KC_PORT = '8443'
+  } = process.env;
 
 type ConnectionEnv = 'app' | 'db' | 'redis';
 
@@ -41,14 +47,15 @@ export const ConnectionConfig: Record<ConnectionEnv, ConnectionInfo> = {
     }
 }
 
-
-// keycloak Server configuration loaded from environment variables
+const publicIssuerHost = cleanUrl(KC_ADMIN_DOMAIN_NAME) || 'https://localhost:8443';
+const internalHost = cleanUrl(KC_INTERNAL_URL);
 
 export const keycloakConfig = {
-    KC_JWKS_URL: `${KC_ADMIN_DOMAIN_NAME}/realms/${KC_REALMS_NAME}/protocol/openid-connect/certs`,    
-    KC_ISSUER: `${KC_ADMIN_DOMAIN_NAME}/realms/${KC_REALMS_NAME}`,
-    // KC_JWKS_URL: `https://localhost:8443/realms/HTTPs_localhost_realm/protocol/openid-connect/certs`,    
-    // KC_ISSUER: `https://localhost:8443/realms/HTTPs_localhost_realm`,
-    port: parseInt(`8443`), // keycloak Server port
-  };
-  
+    // Fetch keys internally via Docker's HTTP network
+    KC_JWKS_URL: `${KC_INTERNAL_URL}/realms/${KC_REALM_NAME}/protocol/openid-connect/certs`,
+
+    // Validate token payload against public HTTPS issuer
+    KC_ISSUER: `${KC_ADMIN_DOMAIN_NAME}/realms/${KC_REALM_NAME}`,
+    // port: parseInt(`8443`),
+    port: parseInt(KC_PORT, 10),
+}

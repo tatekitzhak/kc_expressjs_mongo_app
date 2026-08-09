@@ -7,15 +7,18 @@ services:
       dockerfile: Dockerfile.nodejs
     image: "expressjs_web_app_img"
     environment:
-      # - PORT=3000
       - DATABASE_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@db_app:27017/${DB_NAME}?authSource=admin
+      # Public issuer matching client token
+      - KC_ADMIN_DOMAIN_NAME=https://localhost:8443
+      - KC_REALM_NAME=HTTPS_localhost_realm
+      # Internal URL for container-to-container JWKS fetch over HTTP
+      - KC_INTERNAL_URL=http://keycloak_container:8080
     restart: always
     extra_hosts:
       - "localhost:host-gateway"
     networks:
       - nodejs-mongodb-network
       - kc_shared_central_nginx_proxy_network # Attached to talk to the central proxy
-    # REMOVED public ports mapping: - "3000:3000"
     env_file:
       - .env
     volumes:

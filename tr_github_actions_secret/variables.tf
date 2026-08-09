@@ -89,7 +89,7 @@ variable "kc_port" {
   default = ""
 }
 
-variable "kc_realms_name" {
+variable "KC_REALM_NAME" {
   type    = string
   default = ""
 }

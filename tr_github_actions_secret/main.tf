@@ -36,7 +36,7 @@ locals {
     KC_ADMIN_DOMAIN_NAME                   = var.kc_admin_domain_name
     KC_AUDIENCE                            = var.kc_audience
     KC_PORT                                = var.kc_port
-    KC_REALMS_NAME                         = var.kc_realms_name
+    KC_REALM_NAME                         = var.KC_REALM_NAME
     ME_PASSWORD                            = var.me_password
     ME_USERNAME                            = var.me_username
     MONGODB_DB                             = var.mongodb_db
