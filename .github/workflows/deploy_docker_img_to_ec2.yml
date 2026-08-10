@@ -122,8 +122,8 @@ jobs:
             # 2. Dynamically assign domain variables using Public IP if secret is empty
             HOST_MACHINE="https://${PUBLIC_IP}"
             EXPRESSJS_REST_API="https://${PUBLIC_IP}:4000"
-            FRONTEND_DOMAIN_NAME="${https://${PUBLIC_IP}:3000}"
-            KC_ADMIN_DOMAIN_NAME="${https://${PUBLIC_IP}:8443}"
+            FRONTEND_DOMAIN_NAME="https://${PUBLIC_IP}:3000"
+            KC_ADMIN_DOMAIN_NAME="https://${PUBLIC_IP}:8443"
             
             # 3. Define docker-compose YAML content
             COMPOSE_YAML=$(cat <<EOF
